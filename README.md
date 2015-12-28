@@ -15,6 +15,7 @@ Low-level
 - Make a 1ms tick resolution software timer (using timer 0)
 
 High-level
+- Implement all the data flow among uart, eeprom and ram. Store when parameter is changed a load it back to ram
 - Complete the missing LED modes, BLINK_SLOW and BLINK_FAST(2Hz and 8Hz) using TIMER driver
 - Make the eeprom memory map to save all the parameters
 - All PID code
