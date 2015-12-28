@@ -22,12 +22,14 @@
 #include <xc.h>
 #include "../defs.h"
 
-#define PWM_TIME_BASE_POSTSCALER 16 // 1 to 16
+#define PWM_TIME_BASE_POSTSCALER 10 // 1 to 16
 
 void ADC_Bootstrap(void);
 
 /**
  * @brief Selects ADC channel to do the conversion
+ * 
+ * Select the new channel and set as "false" the NewSample flag
  * 
  * @param channel Channel number to be selected
  */
@@ -46,9 +48,26 @@ void ADC_Stop(void);
 /*
  * @brief Get last readed value
  * 
+ * Read the last acquired value and set the NewSample flag as "false"
+ * 
  * @return Returns the conversion result
  */
 UINT16 ADC_Read(void);
+
+/*
+ * @brief Check there is a new sample
+ * 
+ * @return Returns "true" if data is new
+ */
+bool ADC_NewSample(void);
+
+/*
+ * @brief Handle the conversion done event
+ * 
+ * Read the conversion result and store on internal buffer (1 sample buffer).
+ * When it is called the NewSample flag will be set as "true".
+ */
+void ADC_ConversionDoneEventHandle(void);
 
 #endif	/* _ADC_H_ */
 

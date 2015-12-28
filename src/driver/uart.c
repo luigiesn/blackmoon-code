@@ -16,11 +16,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <pic18f1330.h>
+
 #include "../../include/driver/uart.h"
 #include "../../include/ringbuffer.h"
 
-#define RXBUFFER_SIZE 64 // bytes
-#define TXBUFFER_SIZE 64 // bytes 
+#define RXBUFFER_SIZE 30 // bytes
+#define TXBUFFER_SIZE 50 // bytes
 
 typedef enum {
     usREADY, usSEND
@@ -31,7 +33,7 @@ static struct {
 
     ringbuffer_t rxRingbuffer;
     ringbuffer_t txRingbuffer;
-    
+
     bool dataReceived;
 
     byte *buffer;
@@ -44,11 +46,14 @@ static byte txBuffer[RXBUFFER_SIZE];
 
 void UART_Boostrap() {
     // UART Interrupts
+    IPR1bits.RCIP = 1; // high priority flag to rx interrupt
     PIE1bits.RCIE = 1; // enable uart received interrupt
-    IPR1bits.RCIP = 1; // high priority interrupt
+    PIR1bits.RCIF = 0; // clean rx interrupt flag
 
+    IPR1bits.TXIP = 1; // high priority flag to tx interrupt
     PIE1bits.TXIE = 1; // enable uart transmitted interrupt
-    IPR1bits.TXIP = 1; // high priority interrupt
+    PIR1bits.TXIF = 0; // clean rx interrupt flag
+
 
     SPEN = 1; // Serial Port Enable bit
     CREN = 1; // Continuous Receive Enable bit
@@ -75,7 +80,7 @@ void UART_Process() {
     switch (Prv.state) {
         case usREADY:
         {
-            if(!ringbufferEmpty(&Prv.txRingbuffer)) // if output buffer is not empty
+            if (!ringbufferEmpty(&Prv.txRingbuffer)) // if output buffer is not empty
                 Prv.state = usSEND;
             break;
         }
@@ -94,38 +99,38 @@ void UART_Process() {
     }
 }
 
-bool UART_Send(byte* data, byte size){
+bool UART_Send(byte* data, byte size) {
     if (ringbufferFree(&Prv.txRingbuffer) < size) // if there is no free space
         return false;
-    
+
     ringbufferAdd(&Prv.txRingbuffer, data, size);
-   
-    return true; 
+
+    return true;
 }
 
-bool UART_DataReceived(){
+bool UART_DataReceived() {
     return Prv.dataReceived;
 }
 
-byte UART_DataReceivedCnt(){    
+byte UART_DataReceivedCnt() {
     return ringbufferCount(&Prv.rxRingbuffer);
 }
 
 bool UART_ReadData(byte* data, byte size) {
     byte* elems;
     byte elemsCnt, i;
-    
+
     elemsCnt = ringbufferGetElements(&Prv.rxRingbuffer, &elems);
-    
-    if(size > elemsCnt)
+
+    if (size > elemsCnt)
         return false;
-    
-    for(i = 0 ; i < size ; i++){ // copy
+
+    for (i = 0; i < size; i++) { // copy
         data[i] = elems[i];
     }
-    
+
     ringbufferRemove(&Prv.rxRingbuffer, elemsCnt); // remove readed bytes;
-    return true;  
+    return true;
 }
 
 void UART_ReceiveEventHandle(void) {
@@ -137,8 +142,7 @@ void UART_ReceiveEventHandle(void) {
 void UART_TransmittedEventHandle(void) {
     if (Prv.i_buffer > Prv.elems) {
         Prv.elems = 0;
-    }
-    else{
+    } else {
         TXREG = Prv.buffer[Prv.i_buffer++]; // send byte then goto next position
     }
 }

@@ -18,31 +18,50 @@
 
 #include "../../include/driver/adc.h"
 
+static struct {
+    UINT16 conversionBuffer;
+    bool newSample;
+} Prv;
+
 void ADC_Bootstrap(void) {
     ADCON0 = 0x80; // triggered by PWM time base, adc off
     ADCON1bits.PCFG = 0x04; // AN0, AN1 and AN3 are active as analog input
     ADCON2 = 0xba; // 32 TAD(total), TAD = TOSC*32
-    
-    PWMCON1bits.SEVOPS = PWM_TIME_BASE_POSTSCALER - 1; 
+
+    PWMCON1bits.SEVOPS = PWM_TIME_BASE_POSTSCALER - 1;
+
+    // Interrupt configuration
+    IPR1bits.ADIP = 0; // low priority flag to ADC interrupt
+    PIE1bits.ADIE = 1; // enable ADC interrupt
+    PIR1bits.ADIF = 0; // clean ADC flag
+
+    Prv.newSample = false;
 }
 
-void ADC_SelectChannel(byte channel){
+void ADC_SelectChannel(byte channel) {
     ADCON0bits.CHS = channel;
+    Prv.newSample = false;
 }
 
 void ADC_Start(void) {
-    ADCON0 |= 0x01; 
+    ADCON0 |= 0x01;
 }
 
-void ADC_Stop(void){
-    ADCON0 &= 0xfe; 
+void ADC_Stop(void) {
+    ADCON0 &= 0xfe;
 }
 
-UINT16 ADC_Read(void){
-    return (UINT16)ADRES;
+UINT16 ADC_Read(void) {
+    Prv.newSample = false;
+    return Prv.conversionBuffer;
 }
 
+bool ADC_NewSample(void) {
+    return Prv.newSample;
+}
 
-
-
+void ADC_ConversionDoneEventHandle(void) {
+    Prv.conversionBuffer = (UINT16) ADRES;
+    Prv.newSample = true;
+}
 

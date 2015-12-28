@@ -18,55 +18,82 @@
 
 #include "../../include/driver/eeprom.h"
 
-typedef enum{
-    esIDLE, esWRITING, esWRITE
-}eepromState;
+#define EEPROM_DATA_OFFSET 16 //offset to protect system intial data
+
+typedef enum {
+    esIDLE, esUPDATE_RAM, esUPDATE_EEPROM
+} eepromState;
 
 static struct {
     eepromState state;
-    
-    byte addr;
-    byte* buffer;
-    byte length;
-    
+
+    bool imageModified;
 } Prv;
+
+static byte virtualEEPROM[VIRTUAL_EEPROM_SIZE];
 
 void EEPROM_Boostrap() {
     EECON1bits.CFGS = 0; // acess eeprom or flash mem.
     EECON1bits.EEPGD = 0; // acess eeprom mem.
-}
 
-void EEPROM_Init() {
+    // Interrupt configuration
+    IPR2bits.EEIP = 0; // low priority flag to eeprom write interrupt
+    PIE2bits.EEIE = 1; // enable eeprom write interrupt
+    PIR2bits.EEIF = 0; // clean interrup flag
 
+    Prv.imageModified = true;
+    Prv.state = esUPDATE_RAM;
 }
 
 void EEPROM_Process() {
-    switch(Prv.state){
-        case esWRITE:
+    switch (Prv.state) {
+        case esIDLE:
+        {
+            if (Prv.imageModified) {
+                Prv.imageModified = false;
+                Prv.state = esUPDATE_EEPROM;
+            }
+            break;
+        }
+        case esUPDATE_RAM:
         {
             byte i;
-            
-            for(i=0; i < Prv.length; i++) {
-                EEADR = Prv.addr;
-                EEDATA = Prv.buffer[i];
-                EECON1bits.WREN = 1;
-                INTCONbits.GIE = 0;
+
+            for (i = 0; i < VIRTUAL_EEPROM_SIZE; i++) { // send to the RAM all eeprom data
+                EEADR = EEPROM_DATA_OFFSET + i;
+                EECON1bits.RD = 1;
+                virtualEEPROM[i] = EEDATA;
+            }
+
+            Prv.state = esIDLE;
+            break;
+        }
+        case esUPDATE_EEPROM:
+        {
+            static byte i;
+
+            if (!EECON1bits.WR) { // if writing is not being performed
+                EEADR = EEPROM_DATA_OFFSET + i; // set address
+                EEDATA = virtualEEPROM[i++]; // set data and increment
+
+                EECON1bits.WREN = 1; // enable eeprom write
+                INTCONbits.GIE = 0; // disable interrupts
 
                 /// unlock sequence
                 asm("MOVLW 55h");
                 asm("MOVWF EECON2");
                 asm("MOVLW 0AAh");
                 asm("MOVWF EECON2");
-                asm("BSF EECON1, WR");
+                asm("BSF EECON1, WR"); // write!
 
-                INTCONbits.GIE = 1;
+                INTCONbits.GIE = 1; // enable interrupts
+                EECON1bits.WREN = 0; // disable eeprom write
             }
-            break;
-        }
-        case esWRITING:
-        {
-            if(!EECON1bits.WR)
+
+            if (i == VIRTUAL_EEPROM_SIZE) {
+                i = 0;
                 Prv.state = esIDLE;
+            }
             break;
         }
         default:
@@ -74,30 +101,14 @@ void EEPROM_Process() {
     }
 }
 
-void EEPROM_Write(byte *buffer, byte addr, byte length) {
-    Prv.buffer = buffer;
-    Prv.length = length;
-    Prv.addr = addr;
-    
-    Prv.state = esWRITE;
-}
-
-void EEPROM_Read(byte *data, byte startAdress, byte length) {
-    byte i;
-    for (i = 0; i < length; i++) {
-        EEADR = startAdress + i;
-        EECON1bits.RD = 1; // start to read
-        data[i] = EEDATA;
+void EEPROM_Write(byte* data, byte address) {
+    if (*data != virtualEEPROM[address]) {
+        virtualEEPROM[address] = (*data);
+        Prv.imageModified = true;
     }
 }
 
-void EEPROM_WriteByte(byte data, byte adress) {
-    EEPROM_Write(&data, adress, 1);
-}
-
-byte EEPROM_ReadByte(byte adress) {
-    byte data;
-    EEPROM_Read(&data, adress, 1);
-    return data;
+void EEPROM_Read(byte* data, byte address) {
+    (*data) = virtualEEPROM[address];
 }
 

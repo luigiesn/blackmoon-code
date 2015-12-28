@@ -25,18 +25,18 @@
 void SystemInit(void);
 
 void BlackmoonServo(void) {
-    
+
     // Initial setup
     SystemInit();
 
-    // bootstrap all drivers   
+    // bootstrap all drivers
     LED_Bootstrap();
     UART_Boostrap();
 
     // initialize all drivers
-    
+
     // run all processes in loop
-    for(;;){
+    for (;;) {
         UART_Process();
     }
 }
@@ -66,6 +66,16 @@ void interrupt low_priority LowPriorISR(void) {
             PIR1bits.TMR1IF = 0; // clean flag
         }
      */
+
+    if (PIE1bits.ADIE && PIR1bits.ADIF) { // ADC
+        PIR1bits.ADIF = 0; // clean flag
+        ADC_ConversionDoneEventHandle();
+    }
+
+    if (PIE2bits.EEIE && PIR2bits.EEIF) { // EEPROM
+        PIR2bits.EEIF = 0; // clean flag
+        // here: eeprom write event hadle
+    }
 }
 
 void SystemInit() {
@@ -80,14 +90,16 @@ void SystemInit() {
     INTCONbits.GIEL = 1; // enables low-priority interrupts
 
     // Timer0 Interrupt
-    INTCONbits.TMR0IE = 1; // enables timer0
     INTCON2bits.TMR0IP = 0; // low priority interrupt
+    INTCONbits.TMR0IE = 1; // enables timer0
+    INTCONbits.TMR0IF = 0; // clean flag
 
     /*
     // Timer1 Interrupt
     PIE1bits.TMR1IE = 1; // enables timer1 interrupt
     IPR1bits.TMR1IP = 0; // low priority interrupt
      */
+
 }
 
 
