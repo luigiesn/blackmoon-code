@@ -1,5 +1,5 @@
 /*
- * Main application - part of Blackmoon servo controller
+ * Main application of Blackmoon Servo - part of Blackmoon servo controller
  * Copyright (C) 2016 - Luigi E. Sica Nery
  *
  * This program is free software: you can redistribute it and/or modify it
