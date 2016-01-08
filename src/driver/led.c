@@ -18,33 +18,55 @@
 
 #include "../../include/driver/led.h"
 
-void LED_Bootstrap(void){
+static struct {
+    Timer ledTimer;
+} Prv;
+
+void LED_Change(void);
+
+void LED_Bootstrap(void) {
     ADCON1bits.PCFG2 = 1; // Port is configured as RA4
-    
+
+    LED_PORT &= (~LED_MASK);
     LED_PORT_DIR &= (~LED_MASK);
-    
-    LED_Mode(ledsCONSTANT_ON);
 }
 
-void LED_Mode(led_mode_t mode){
-    switch(mode){
+void LED_Init(void) {
+    TIMER_Create(&Prv.ledTimer, true, LED_Change);
+}
+
+void LED_Mode(led_mode_t mode) {
+    switch (mode) {
         case ledsCONSTANT_OFF:
         {
+            TIMER_Stop(&Prv.ledTimer);
             LED_ForceOff();
             break;
         }
         case ledsBLINK_SLOW:
         {
+            TIMER_SetPeriod(&Prv.ledTimer, SLOW_BLINKING_PERIOD / 2);
+            TIMER_Start(&Prv.ledTimer);
             break;
         }
         case ledsBLINK_FAST:
         {
+            TIMER_SetPeriod(&Prv.ledTimer, FAST_BLINKING_PERIOD / 2);
+            TIMER_Start(&Prv.ledTimer);
             break;
         }
         case ledsCONSTANT_ON:
         {
+            TIMER_Stop(&Prv.ledTimer);
             LED_ForceOn();
             break;
         }
     }
+}
+
+void LED_Change(void) {
+    if (LED_PORT & LED_MASK)
+        LED_ForceOff();
+    else
+        LED_ForceOn();
 }

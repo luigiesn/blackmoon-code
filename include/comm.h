@@ -19,17 +19,19 @@
 #ifndef _COMM_H_
 #define _COMM_H_
 
+/* Data format:
+ * <--------------LENGTH---------------->
+ * OPEN | PARAM | DATA_H | DATA_L | CLOSE
+ *                <----16-bits--->     
+ */
+
 #include "../include/defs.h"
 
-#define PROTOCOL_LENGTH 5 //bytes
-#define START_BYTE 0x30
-#define END_BYTE 0x35
+typedef enum {
+    ucpSTATUS, ucpPID_KP, ucpPID_KI, ucpPID_KD, ucpFREQ, ucpPWM_MAX, ucpINPUT_MAX, ucpDEADZONE, ucpADC_INPUT
+} COMM_Param_t;
 
-enum COMM_Param {
-    ucpSTATUS, ucpPID_KP, ucpPID_KI, ucpPID_KD, ucpFREQ, ucpPWM_MAX, ucpINPUT_MAX, ucpDEADZONE, ucpADC_INPUT 
-};
-
-typedef enum COMM_Param COMM_Param_t;
+void COMM_Process(void);
 
 /**
  * @brief Send a internal parameter

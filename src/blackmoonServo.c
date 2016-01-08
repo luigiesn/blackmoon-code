@@ -20,7 +20,10 @@
 #include "../include/defs.h"
 
 #include "../include/driver/led.h"
+#include "../include/driver/timer.h"
 #include "../include/driver/uart.h"
+#include "../include/driver/adc.h"
+#include "../include/app.h"
 
 void SystemInit(void);
 
@@ -30,27 +33,30 @@ void BlackmoonServo(void) {
     SystemInit();
 
     // bootstrap all drivers
+    ADC_Bootstrap();
+    TIMER_Bootstrap();
     LED_Bootstrap();
     UART_Boostrap();
 
+    App_Boostrap();
+
     // initialize all drivers
+    LED_Init();
+    App_Init();
 
     // run all processes in loop
     for (;;) {
         UART_Process();
+        COMM_Process();
+
+        App_Process();
     }
 }
 
 void interrupt high_priority HighPriorISR(void) {
 
     if (PIE1bits.RCIE && PIR1bits.RCIF) { // UART RX
-        PIR1bits.RCIF = 0; // clean flag
         UART_ReceiveEventHandle();
-    }
-
-    if (PIE1bits.TXIE && PIR1bits.TXIF) { // UART TX
-        PIR1bits.TXIF = 0; // clean flag
-        UART_TransmittedEventHandle();
     }
 }
 
@@ -58,7 +64,7 @@ void interrupt low_priority LowPriorISR(void) {
 
     if (INTCONbits.TMR0IE && INTCONbits.TMR0IF) { // TIMER0
         INTCONbits.TMR0IF = 0; // clean flag
-        // here: timer0 overflow event hadle
+        TIMER_HwEventHandle();
     }
 
     /*
@@ -88,12 +94,6 @@ void SystemInit() {
     RCONbits.IPEN = 1; // enables interrupt
     INTCONbits.GIEH = 1; // enables high-priority interrupts
     INTCONbits.GIEL = 1; // enables low-priority interrupts
-
-    // Timer0 Interrupt
-    INTCON2bits.TMR0IP = 0; // low priority interrupt
-    INTCONbits.TMR0IE = 1; // enables timer0
-    INTCONbits.TMR0IF = 0; // clean flag
-
     /*
     // Timer1 Interrupt
     PIE1bits.TMR1IE = 1; // enables timer1 interrupt

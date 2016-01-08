@@ -22,9 +22,32 @@
 #include <xc.h>
 #include "../defs.h"
 
-void TIMER_Boostrap(void);
-void TIMER_Init(void);
-void TIMER_Process(void);
+#define NUM_MAX_TIMERS 4 // max = 255
+
+typedef void (*TimerCallbackFunction)(void);
+
+typedef struct{
+    UINT16 period;
+    bool autoReload;
+
+    TimerCallbackFunction pCallbackFunction;      
+    
+    UINT16 triggerTime;
+    bool needToOverflow;
+    bool enabled;
+}Timer;
+
+void TIMER_Bootstrap(void);
+
+bool TIMER_Create(Timer* timer, bool autoReload, TimerCallbackFunction pCallbackFunction);
+
+void TIMER_SetPeriod(Timer* timer, UINT16 period);
+
+void TIMER_Start(Timer* timer);
+
+void TIMER_Stop(Timer* timer);
+
+void TIMER_HwEventHandle(void);
 
 #endif	/* _TIMER_H_ */
 

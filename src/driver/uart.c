@@ -21,11 +21,11 @@
 #include "../../include/driver/uart.h"
 #include "../../include/ringbuffer.h"
 
-#define RXBUFFER_SIZE 30 // bytes
-#define TXBUFFER_SIZE 50 // bytes
+#define RXBUFFER_SIZE 6 // bytes
+#define TXBUFFER_SIZE 6 // bytes
 
 typedef enum {
-    usREADY, usSEND
+    usOPERATING
 } UART_State;
 
 static struct {
@@ -34,26 +34,20 @@ static struct {
     ringbuffer_t rxRingbuffer;
     ringbuffer_t txRingbuffer;
 
-    bool dataReceived;
-
     byte *buffer;
     byte elems;
-    byte i_buffer;
 } Prv;
 
 static byte rxBuffer[RXBUFFER_SIZE];
-static byte txBuffer[RXBUFFER_SIZE];
+static byte txBuffer[TXBUFFER_SIZE];
 
 void UART_Boostrap() {
     // UART Interrupts
     IPR1bits.RCIP = 1; // high priority flag to rx interrupt
     PIE1bits.RCIE = 1; // enable uart received interrupt
-    PIR1bits.RCIF = 0; // clean rx interrupt flag
 
-    IPR1bits.TXIP = 1; // high priority flag to tx interrupt
-    PIE1bits.TXIE = 1; // enable uart transmitted interrupt
-    PIR1bits.TXIF = 0; // clean rx interrupt flag
-
+    //    IPR1bits.TXIP = 1; // high priority flag to tx interrupt
+    //    PIE1bits.TXIE = 1; // enable uart transmitted interrupt
 
     SPEN = 1; // Serial Port Enable bit
     CREN = 1; // Continuous Receive Enable bit
@@ -71,28 +65,28 @@ void UART_Boostrap() {
     ringbufferInit(&Prv.txRingbuffer, txBuffer, TXBUFFER_SIZE);
 
     Prv.elems = 0;
-    Prv.i_buffer = 0;
 
-    Prv.state = usREADY;
+    Prv.state = usOPERATING;
 }
 
 void UART_Process() {
     switch (Prv.state) {
-        case usREADY:
+        case usOPERATING:
         {
-            if (!ringbufferEmpty(&Prv.txRingbuffer)) // if output buffer is not empty
-                Prv.state = usSEND;
-            break;
-        }
-        case usSEND:
-        {
-            if (!Prv.elems) { // if elements number reaches to zero
-                Prv.elems = ringbufferGetElements(&Prv.txRingbuffer, &Prv.buffer);
-                Prv.i_buffer = 0;
-                if (!Prv.elems) { // second verification to confirm buffer is empty
-                    Prv.state = usREADY;
-                    break;
+            if (!ringbufferEmpty(&Prv.txRingbuffer)) { // if output buffer is not empty
+                byte i, elems;
+                byte* buffer;
+
+                elems = ringbufferGetElements(&Prv.txRingbuffer, &buffer);
+                i = 0;
+
+                while (i < elems) {
+                    if (TXSTAbits.TRMT) {
+                        TXREG = buffer[i]; // send byte then goto next position
+                        i++;
+                    }
                 }
+                ringbufferRemove(&Prv.txRingbuffer, elems); // remove sent data
             }
             break;
         }
@@ -108,42 +102,34 @@ bool UART_Send(byte* data, byte size) {
     return true;
 }
 
-bool UART_DataReceived() {
-    return Prv.dataReceived;
+bool UART_SendByte(byte data) {
+    if (!ringbufferFree(&Prv.txRingbuffer)) // if there is no free space
+        return false;
+
+    ringbufferAdd(&Prv.txRingbuffer, &data, 1);
+
+    return true;
 }
 
-byte UART_DataReceivedCnt() {
+byte UART_DataOnInput() {
     return ringbufferCount(&Prv.rxRingbuffer);
 }
 
-bool UART_ReadData(byte* data, byte size) {
-    byte* elems;
-    byte elemsCnt, i;
+byte UART_ReadData(byte** data) {
+    byte dataCnt;
 
-    elemsCnt = ringbufferGetElements(&Prv.rxRingbuffer, &elems);
+    dataCnt = ringbufferGetElements(&Prv.rxRingbuffer, data);
 
-    if (size > elemsCnt)
-        return false;
+    return dataCnt;
+}
 
-    for (i = 0; i < size; i++) { // copy
-        data[i] = elems[i];
-    }
-
-    ringbufferRemove(&Prv.rxRingbuffer, elemsCnt); // remove readed bytes;
-    return true;
+void UART_RemoveData(byte amount) {
+    ringbufferRemove(&Prv.rxRingbuffer, amount); // remove bytes;
 }
 
 void UART_ReceiveEventHandle(void) {
     byte data = RCREG;
     ringbufferAdd(&Prv.rxRingbuffer, &data, 1);
-    Prv.dataReceived = true;
 }
 
-void UART_TransmittedEventHandle(void) {
-    if (Prv.i_buffer > Prv.elems) {
-        Prv.elems = 0;
-    } else {
-        TXREG = Prv.buffer[Prv.i_buffer++]; // send byte then goto next position
-    }
-}
 

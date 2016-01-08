@@ -19,12 +19,83 @@
 #include "../include/comm.h"
 #include "../include/driver/uart.h"
 
-/* Data format:
- *
- * OPEN | CONFIG | DATA_H | DATA_L | CLOSE
- * 0x30   0 to 8    16-bits data     0x35
- *
- */
+#define PROTOCOL_LENGTH 5 //bytes
+#define START_BYTE 0x30
+#define END_BYTE 0x35
+
+typedef enum {
+    cpsSTART_VERIFICATION, cpsSTARTED, cpsPARAM, cpsVALUE, cpsSTOP_VERIFICATION
+} COMM_ParserState_t;
+
+typedef enum {
+    csCHECK, csINTERPRETING
+} COMM_State_t;
+
+static struct {
+    COMM_State_t state;
+    COMM_ParserState_t parserState;
+} Prv;
+
+void COMM_Process(void) {
+    switch (Prv.state) {
+        case csCHECK:
+        {
+            byte* dataVec;
+            byte totalCnt, instantCnt;
+            byte i, dataToRemove = 0;
+            byte* preValidData;
+
+            totalCnt = UART_DataOnInput();
+
+            if (totalCnt >= PROTOCOL_LENGTH) { // received a frame?
+                instantCnt = UART_ReadData(&dataVec); // count
+
+                while (i < instantCnt) {
+                    switch (Prv.parserState) {
+                        case cpsSTART_VERIFICATION:
+                        {
+                            if (dataVec[i] == START_BYTE) { // fisrt step to be a valid data
+                                Prv.parserState = cpsSTARTED;
+                            } else dataToRemove++;
+                            break;
+                        }
+                        case cpsSTARTED:
+                        {
+                            preValidData = &(dataVec[i]); // hold a possible valid data
+                            i = i + 2; // jump to the last verification (STOP_VERIFICATION)
+                            Prv.parserState = cpsSTOP_VERIFICATION;
+                            break;
+                        }
+                        case cpsSTOP_VERIFICATION:
+                        {
+                            if (dataVec[i] == END_BYTE) {
+                                /////////////////////////////////
+                                // now, you got a valid param. value
+                                // DO THE ACTION(EEPROM_Write())!
+                                /////////////////////////////////
+                                dataToRemove = dataToRemove + PROTOCOL_LENGTH;
+                                Prv.parserState = cpsSTART_VERIFICATION;
+                            }
+                            break;
+                        }
+                    }
+                    i = i + 1;
+                    if (i == instantCnt) { // verify if buffer is empty
+                        UART_RemoveData(dataToRemove); // remove read data
+                        instantCnt = UART_ReadData(&dataVec); // count data on buffer
+                        if (instantCnt == 0) //if empty, break
+                            break;
+                        else // if not, restart count
+                            i = 0;
+                    }
+                }
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
 
 bool COMM_SendParameter(COMM_Param_t p, UINT16 value) {
     bool ret;
@@ -39,3 +110,4 @@ bool COMM_SendParameter(COMM_Param_t p, UINT16 value) {
 
     return ret;
 }
+

@@ -22,9 +22,19 @@
 #include <xc.h>
 #include "../defs.h"
 
+#define PWM_TIME_BASE 0
+#define MANUAL 1
+
+#define ADC_TRG_SRC MANUAL
+
 #define PWM_TIME_BASE_POSTSCALER 10 // 1 to 16
 
 void ADC_Bootstrap(void);
+
+/**
+ * @brief Force conversion 
+ */
+void ADC_Convert(void);
 
 /**
  * @brief Selects ADC channel to do the conversion

@@ -11,6 +11,7 @@ typedef enum {
 
 #define bool BOOL_TYPE
 #define UniDimVector UNI_DIM_VECTOR_TYPE
+#define NULL ((void*)0)
 
 typedef unsigned char byte;
 typedef signed int INT16;

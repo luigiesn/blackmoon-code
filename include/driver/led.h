@@ -21,10 +21,14 @@
 
 #include <xc.h>
 #include "../defs.h"
+#include "../driver/timer.h"
 
 #define LED_MASK 0x10 // RA4
 #define LED_PORT PORTA
 #define LED_PORT_DIR TRISA
+
+#define SLOW_BLINKING_PERIOD 600 // ms
+#define FAST_BLINKING_PERIOD 200 // ms
 
 enum led_mode {
     ledsCONSTANT_OFF, ledsBLINK_SLOW, ledsBLINK_FAST, ledsCONSTANT_ON

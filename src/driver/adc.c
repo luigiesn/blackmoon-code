@@ -16,6 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <pic18f1330.h>
+
 #include "../../include/driver/adc.h"
 
 static struct {
@@ -24,11 +26,17 @@ static struct {
 } Prv;
 
 void ADC_Bootstrap(void) {
+#if ADC_TRG_SRC == PWM_TIME_BASE
     ADCON0 = 0x80; // triggered by PWM time base, adc off
+    PWMCON1bits.SEVOPS = PWM_TIME_BASE_POSTSCALER - 1;
+#endif // ADC_TRG_SRC == PWM_TIME_BASE
+
+#if ADC_TRG_SRC == MANUAL
+    ADCON0 = 0x00; // manually triggered, adc off
+#endif // ADC_TRG_SRC == MANUAL
+
     ADCON1bits.PCFG = 0x04; // AN0, AN1 and AN3 are active as analog input
     ADCON2 = 0xba; // 32 TAD(total), TAD = TOSC*32
-
-    PWMCON1bits.SEVOPS = PWM_TIME_BASE_POSTSCALER - 1;
 
     // Interrupt configuration
     IPR1bits.ADIP = 0; // low priority flag to ADC interrupt
@@ -36,6 +44,11 @@ void ADC_Bootstrap(void) {
     PIR1bits.ADIF = 0; // clean ADC flag
 
     Prv.newSample = false;
+}
+
+void ADC_Convert(void) {
+    if (ADCON0bits.GO == 0)
+        ADCON0bits.GO = 1;
 }
 
 void ADC_SelectChannel(byte channel) {

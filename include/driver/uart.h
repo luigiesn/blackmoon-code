@@ -40,7 +40,7 @@ void UART_Process(void);
 /**
  * @brief Send a data vector
  * 
- * Put a data vector in output buffer
+ * Check and put a data vector in output buffer
  * 
  * @param data Vector to send
  * @param size Size of the vector to send
@@ -52,24 +52,37 @@ void UART_Process(void);
 bool UART_Send(byte* data, byte size);
 
 /**
- * @brief Count amount of data in input buffer
+ * @brief Send a byte
  * 
- * @return Returns how many bytes are in the input buffer
+ * Check and put a byte in output buffer
+ * 
+ * @param data
+ * @return Returns "true" if the byte vector was added
  */
-byte UART_DataReceivedCnt(void);
+bool UART_SendByte(byte data);
 
 /**
- * @brief Get data in input buffer
+ * @brief Count total amount of data on buffer
  * 
- * Copy bytes on input buffer to given bytes vector
- * 
- * @param data Vector to paste data
- * @param size Size vector to obtain
- * 
- * @return Returns "true" if the data vector was copied
- * 
+ * @return Number of byte on input buffer
  */
-bool UART_ReadData(byte* data, byte size);
+byte UART_DataOnInput(void);
+
+/**
+ * @brief Count amount and get the readable data in the input buffer
+ * 
+ * @param data pointer to a vector
+ * 
+ * @return Returns how many readable bytes are in the input buffer
+ */
+byte UART_ReadData(byte** data);
+
+/**
+ * @brief Remove data from input buffer
+ * 
+ * @param amount Amount of data to remove from input buffer
+ */
+void UART_RemoveData(byte amount);
 
 /**
  * @brief Receive interrupt handler
@@ -77,13 +90,6 @@ bool UART_ReadData(byte* data, byte size);
  * On receive interrupt, received byte is stored in input buffer
  */
 void UART_ReceiveEventHandle(void);
-
-/**
- * @brief Transmit interrupt handler
- * 
- * On transmit interrupt, transmit next byte on output buffer
- */
-void UART_TransmittedEventHandle(void); 
 
 #endif	/* _UART_H_ */
 
