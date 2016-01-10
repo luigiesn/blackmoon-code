@@ -35,32 +35,16 @@ void LED_Init(void) {
     TIMER_Create(&Prv.ledTimer, true, LED_Change);
 }
 
-void LED_Mode(led_mode_t mode) {
-    switch (mode) {
-        case ledsCONSTANT_OFF:
-        {
-            TIMER_Stop(&Prv.ledTimer);
-            LED_ForceOff();
-            break;
-        }
-        case ledsBLINK_SLOW:
-        {
-            TIMER_SetPeriod(&Prv.ledTimer, SLOW_BLINKING_PERIOD / 2);
-            TIMER_Start(&Prv.ledTimer);
-            break;
-        }
-        case ledsBLINK_FAST:
-        {
-            TIMER_SetPeriod(&Prv.ledTimer, FAST_BLINKING_PERIOD / 2);
-            TIMER_Start(&Prv.ledTimer);
-            break;
-        }
-        case ledsCONSTANT_ON:
-        {
-            TIMER_Stop(&Prv.ledTimer);
-            LED_ForceOn();
-            break;
-        }
+void LED_Mode(UINT16 period) {
+    if (period == LED_CONST_OFF) {
+        TIMER_Stop(&Prv.ledTimer);
+        LED_ForceOff();
+    } else if (period == LED_CONST_OFF) {
+        TIMER_Stop(&Prv.ledTimer);
+        LED_ForceOn();
+    } else {
+        TIMER_SetPeriod(&Prv.ledTimer, period);
+        TIMER_Start(&Prv.ledTimer);
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * UART module driver - part of Blackmoon servo controller
+ * Serial driver - part of Blackmoon servo controller
  * Copyright (C) 2015 - Luigi E. Sica Nery
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -18,9 +18,11 @@
 
 #include <pic18f1330.h>
 
-#include "../../include/driver/uart.h"
+#include "../../include/driver/serial.h"
 #include "../../include/ringbuffer.h"
 #include "../../include/driver/led.h"
+
+#define UART_BRG 138
 
 #define PROTOCOL_LENGTH 5 //bytes
 #define START_BYTE 0x30
@@ -31,7 +33,7 @@
 
 typedef enum {
     usOPERATING
-} UART_State;
+} Serial_State;
 
 typedef struct {
     byte parameter;
@@ -39,7 +41,7 @@ typedef struct {
 } BoardParam;
 
 static struct {
-    UART_State state;
+    Serial_State state;
 
     ringbuffer_t txRingbuffer;
 
@@ -58,15 +60,12 @@ void Serial_Boostrap() {
     IPR1bits.RCIP = 1; // high priority flag to rx interrupt
     PIE1bits.RCIE = 1; // enable uart received interrupt
 
-    //    IPR1bits.TXIP = 1; // high priority flag to tx interrupt
-    //    PIE1bits.TXIE = 1; // enable uart transmitted interrupt
-
     SPEN = 1; // Serial Port Enable bit
     CREN = 1; // Continuous Receive Enable bit
 
     RXDTP = 0; // Received Data Polarity Select bit(if RX = 1, data is inverted)
-    SPBRGH = 0x03; // 9615bps
-    SPBRG = 0x41; // 9615bps
+    SPBRGH = UART_BRG >> 8; // 9615bps
+    SPBRG = UART_BRG; // 9615bps
     BRG16 = 1;
     BRGH = 1;
 
@@ -123,8 +122,7 @@ void Serial_RxProcess(void) {
         if (readCnt == PROTOCOL_LENGTH) {
             readCnt = 0;
             if (input.parameter == BOARD_STATUS) {
-                if (input.value) LED_Mode(ledsCONSTANT_ON);
-                else LED_Mode(ledsCONSTANT_OFF);
+                LED_Mode(input.value);
             }
         }
     }

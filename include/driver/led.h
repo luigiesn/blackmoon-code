@@ -27,14 +27,11 @@
 #define LED_PORT PORTA
 #define LED_PORT_DIR TRISA
 
-#define SLOW_BLINKING_PERIOD 600 // ms
-#define FAST_BLINKING_PERIOD 200 // ms
 
-enum led_mode {
-    ledsCONSTANT_OFF, ledsBLINK_SLOW, ledsBLINK_FAST, ledsCONSTANT_ON
-};
-
-typedef enum led_mode led_mode_t;
+#define LED_CONST_OFF 0
+#define LED_SLOW 200 // ms (ton and toff)
+#define LED_FAST 50 // ms
+#define LED_CONST_ON 65535
 
 /**
  * @brief LED driver bootstrap
@@ -49,13 +46,11 @@ void LED_Bootstrap(void);
 void LED_Init(void);
 
 /**
- * @brief LED mode selector
+ * @brief Change status LED speed
  *
- * Select among four LED modes
- *
- * @param mode LED mode
+ * @param LED blinking period
  */
-void LED_Mode(led_mode_t mode);
+void LED_Mode(UINT16 period);
 
 /**
  * @brief Instant turn-off

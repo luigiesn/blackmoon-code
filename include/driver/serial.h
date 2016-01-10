@@ -1,5 +1,5 @@
 /*
- * UART module driver - part of Blackmoon servo controller
+ * Serial driver - part of Blackmoon servo controller
  * Copyright (C) 2015 - Luigi E. Sica Nery
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -16,8 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _UART_H_
-#define	_UART_H_
+#ifndef _SERIAL_H_
+#define	_SERIAL_H_
 
 #include <xc.h>
 
@@ -46,9 +46,9 @@
 
 
 /**
- * @brief UART bootstrap
+ * @brief Serial bootstrap
  *
- * Initialize all UART driver internal parameters
+ * Initialize all serial driver internal parameters
  */
 void Serial_Boostrap(void);
 
@@ -115,5 +115,5 @@ bool Serial_ReadByte(byte* data);
  */
 void Serial_ReceiveEventHandle(void);
 
-#endif	/* _UART_H_ */
+#endif	/* _SERIAL_H_ */
 

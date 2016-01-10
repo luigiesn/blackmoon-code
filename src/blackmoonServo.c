@@ -48,7 +48,6 @@ void BlackmoonServo(void) {
     for (;;) {
         Serial_TxProcess();
         Serial_RxProcess();
-        COMM_Process();
 
         App_Process();
     }
