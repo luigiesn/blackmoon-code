@@ -38,30 +38,35 @@ typedef enum led_mode led_mode_t;
 
 /**
  * @brief LED driver bootstrap
- * 
+ *
  * Initializes the hardware configuration from LED
  */
 void LED_Bootstrap(void);
 
 /**
+ * @brief Intializes all relative configuration to the LED driver
+ */
+void LED_Init(void);
+
+/**
  * @brief LED mode selector
- * 
+ *
  * Select among four LED modes
- * 
+ *
  * @param mode LED mode
  */
 void LED_Mode(led_mode_t mode);
 
 /**
  * @brief Instant turn-off
- * 
+ *
  * Instantly turns off the LED
  */
 #define LED_ForceOff() (LED_PORT &= ~LED_MASK)
 
 /**
  * @brief Instant turn-on
- * 
+ *
  * Instantly turns on the LED
  */
 #define LED_ForceOn() (LED_PORT |= LED_MASK)

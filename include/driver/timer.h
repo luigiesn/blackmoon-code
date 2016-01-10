@@ -26,16 +26,16 @@
 
 typedef void (*TimerCallbackFunction)(void);
 
-typedef struct{
+typedef struct {
     UINT16 period;
     bool autoReload;
 
-    TimerCallbackFunction pCallbackFunction;      
-    
+    TimerCallbackFunction pCallbackFunction;
+
     UINT16 triggerTime;
     bool needToOverflow;
     bool enabled;
-}Timer;
+} Timer;
 
 void TIMER_Bootstrap(void);
 

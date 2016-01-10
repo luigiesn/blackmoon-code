@@ -21,7 +21,7 @@
 
 #include "../include/driver/led.h"
 #include "../include/driver/timer.h"
-#include "../include/driver/uart.h"
+#include "../include/driver/serial.h"
 #include "../include/driver/adc.h"
 #include "../include/app.h"
 
@@ -36,7 +36,7 @@ void BlackmoonServo(void) {
     ADC_Bootstrap();
     TIMER_Bootstrap();
     LED_Bootstrap();
-    UART_Boostrap();
+    Serial_Boostrap();
 
     App_Boostrap();
 
@@ -46,7 +46,8 @@ void BlackmoonServo(void) {
 
     // run all processes in loop
     for (;;) {
-        UART_Process();
+        Serial_TxProcess();
+        Serial_RxProcess();
         COMM_Process();
 
         App_Process();
@@ -56,7 +57,7 @@ void BlackmoonServo(void) {
 void interrupt high_priority HighPriorISR(void) {
 
     if (PIE1bits.RCIE && PIR1bits.RCIF) { // UART RX
-        UART_ReceiveEventHandle();
+        Serial_ReceiveEventHandle();
     }
 }
 

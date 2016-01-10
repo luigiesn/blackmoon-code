@@ -20,7 +20,7 @@
 
 #include "../include/driver/led.h"
 #include "../include/comm.h"
-#include "../include/driver/uart.h"
+#include "../include/driver/serial.h"
 #include "../include/driver/adc.h"
 
 typedef enum {
@@ -42,9 +42,9 @@ void App_Init(void) {
     ADC_SelectChannel(ADC_FEEDBACK_CH);
     ADC_Start();
 
-    TIMER_Create(&Prv.PIDtimer, true, ADC_Convert);
-    TIMER_SetPeriod(&Prv.PIDtimer, 500);
-    TIMER_Start(&Prv.PIDtimer);
+    //    TIMER_Create(&Prv.PIDtimer, true, ADC_Convert);
+    //    TIMER_SetPeriod(&Prv.PIDtimer, 500);
+    //    TIMER_Start(&Prv.PIDtimer);
 }
 
 void App_Process(void) {
@@ -55,10 +55,6 @@ void App_Process(void) {
         }
         case asTEST:
         {
-
-            if (ADC_NewSample()) {
-                UART_Send(ADC_Read(), 2);
-            }
 
             break;
         }

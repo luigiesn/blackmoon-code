@@ -20,19 +20,31 @@
 
 #include "../../include/driver/uart.h"
 #include "../../include/ringbuffer.h"
+#include "../../include/driver/led.h"
 
-#define RXBUFFER_SIZE 6 // bytes
+#define PROTOCOL_LENGTH 5 //bytes
+#define START_BYTE 0x30
+#define END_BYTE 0x35
+
+#define RXBUFFER_SIZE 5 // bytes
 #define TXBUFFER_SIZE 6 // bytes
 
 typedef enum {
     usOPERATING
 } UART_State;
 
+typedef struct {
+    byte parameter;
+    UINT16 value;
+} BoardParam;
+
 static struct {
     UART_State state;
 
-    ringbuffer_t rxRingbuffer;
     ringbuffer_t txRingbuffer;
+
+    byte rxCnt;
+    byte readCnt;
 
     byte *buffer;
     byte elems;
@@ -41,7 +53,7 @@ static struct {
 static byte rxBuffer[RXBUFFER_SIZE];
 static byte txBuffer[TXBUFFER_SIZE];
 
-void UART_Boostrap() {
+void Serial_Boostrap() {
     // UART Interrupts
     IPR1bits.RCIP = 1; // high priority flag to rx interrupt
     PIE1bits.RCIE = 1; // enable uart received interrupt
@@ -61,7 +73,6 @@ void UART_Boostrap() {
     TXEN = 1; // Transmision Enabled
     SYNC = 0; // async
 
-    ringbufferInit(&Prv.rxRingbuffer, rxBuffer, RXBUFFER_SIZE);
     ringbufferInit(&Prv.txRingbuffer, txBuffer, TXBUFFER_SIZE);
 
     Prv.elems = 0;
@@ -69,7 +80,7 @@ void UART_Boostrap() {
     Prv.state = usOPERATING;
 }
 
-void UART_Process() {
+void Serial_TxProcess() {
     switch (Prv.state) {
         case usOPERATING:
         {
@@ -93,7 +104,33 @@ void UART_Process() {
     }
 }
 
-bool UART_Send(byte* data, byte size) {
+void Serial_RxProcess(void) {
+    static byte readCnt;
+    static BoardParam input;
+    byte temp;
+
+    if (Serial_ReadByte(&temp)) {
+        if (temp == START_BYTE || readCnt) {
+            if (readCnt == 1) {
+                input.parameter = temp;
+            } else if (readCnt == 2) {
+                input.value = temp;
+            } else if (readCnt == 3) {
+                input.value += (temp << 8);
+            }
+            readCnt++;
+        }
+        if (readCnt == PROTOCOL_LENGTH) {
+            readCnt = 0;
+            if (input.parameter == BOARD_STATUS) {
+                if (input.value) LED_Mode(ledsCONSTANT_ON);
+                else LED_Mode(ledsCONSTANT_OFF);
+            }
+        }
+    }
+}
+
+bool Serial_Send(byte* data, byte size) {
     if (ringbufferFree(&Prv.txRingbuffer) < size) // if there is no free space
         return false;
 
@@ -102,7 +139,23 @@ bool UART_Send(byte* data, byte size) {
     return true;
 }
 
-bool UART_SendByte(byte data) {
+bool Serial_SendPacket(byte p, UINT16 value) {
+    bool ret;
+    byte packet[PROTOCOL_LENGTH] = {START_BYTE, 0, 0, 0, END_BYTE};
+
+    if (ringbufferFree(&Prv.txRingbuffer) < PROTOCOL_LENGTH) // if there is no free space
+        return false;
+
+    packet[1] = p; // parameter ID
+    packet[2] = (value >> 8) & 0xff; // parameter higher value
+    packet[3] = value & 0xff; // parameter lower value
+
+    ringbufferAdd(&Prv.txRingbuffer, packet, PROTOCOL_LENGTH);
+
+    return true;
+}
+
+bool Serial_SendByte(byte data) {
     if (!ringbufferFree(&Prv.txRingbuffer)) // if there is no free space
         return false;
 
@@ -111,25 +164,25 @@ bool UART_SendByte(byte data) {
     return true;
 }
 
-byte UART_DataOnInput() {
-    return ringbufferCount(&Prv.rxRingbuffer);
+bool Serial_ReadByte(byte* data) {
+    if (Prv.readCnt < Prv.rxCnt) {
+        *data = rxBuffer[Prv.readCnt];
+        Prv.readCnt++;
+        if (Prv.readCnt == Prv.rxCnt) {
+            Prv.readCnt = 0;
+            Prv.rxCnt = 0;
+        }
+        return true;
+    }
+
+    return false;
 }
 
-byte UART_ReadData(byte** data) {
-    byte dataCnt;
-
-    dataCnt = ringbufferGetElements(&Prv.rxRingbuffer, data);
-
-    return dataCnt;
-}
-
-void UART_RemoveData(byte amount) {
-    ringbufferRemove(&Prv.rxRingbuffer, amount); // remove bytes;
-}
-
-void UART_ReceiveEventHandle(void) {
-    byte data = RCREG;
-    ringbufferAdd(&Prv.rxRingbuffer, &data, 1);
+void Serial_ReceiveEventHandle(void) {
+    if (Prv.rxCnt < RXBUFFER_SIZE) {
+        rxBuffer[Prv.rxCnt] = RCREG;
+        Prv.rxCnt++;
+    }
 }
 
 

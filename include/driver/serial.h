@@ -23,73 +23,97 @@
 
 #include "../defs.h"
 
-/**
- * @brief UART bootstrap
- * 
- * Initialize all UART driver internal parameters
+/* Data format:
+ * <--------------LENGTH---------------->
+ * OPEN | PARAM | DATA_H | DATA_L | CLOSE
+ *                <----16-bits--->
  */
-void UART_Boostrap(void);
+
+///// PARAMETERS
+// board status
+#define BOARD_STATUS 0
+
+// PID loop
+#define PID_KP 1
+#define PID_KI 2
+#define PID_KD 3
+#define SET_POINT 4
+
+// bridge
+#define PWM_MAX 5
+#define INPUT_MAX 6
+#define DEADZONE 7
+
 
 /**
- * @brief UART process
- * 
- * UART processing
+ * @brief UART bootstrap
+ *
+ * Initialize all UART driver internal parameters
  */
-void UART_Process(void);
+void Serial_Boostrap(void);
+
+/**
+ * @brief processes that manage the transmission
+ *
+ */
+void Serial_TxProcess(void);
+
+/**
+ * @brief processes that manage the reception
+ *
+ */
+void Serial_RxProcess(void);
 
 /**
  * @brief Send a data vector
- * 
+ *
  * Check and put a data vector in output buffer
- * 
+ *
  * @param data Vector to send
  * @param size Size of the vector to send
- * 
+ *
  * @return Returns "true" if the data vector was added
- * 
+ *
  * @warning The data is not sent imediately. There is an output buffer, so lag is expected
  */
-bool UART_Send(byte* data, byte size);
+bool Serial_Send(byte* data, byte size);
+
+/**
+ * @brief Send a packet (protocol format)
+ *
+ * Check and put a packet in output buffer
+ *
+ * @param p Parameter to be sent
+ * @param value Value to be assigned to the parameter
+ * @return Returns "true" if the packet vector was added
+ */
+bool Serial_SendPacket(byte p, UINT16 value);
 
 /**
  * @brief Send a byte
- * 
+ *
  * Check and put a byte in output buffer
- * 
+ *
  * @param data
  * @return Returns "true" if the byte vector was added
  */
-bool UART_SendByte(byte data);
+bool Serial_SendByte(byte data);
 
 /**
- * @brief Count total amount of data on buffer
- * 
- * @return Number of byte on input buffer
+ * @brief Get byte if data exists
+ *
+ * @param byte pointer to data
+ *
+ * @return Returns true if exists data in the input buffer
  */
-byte UART_DataOnInput(void);
-
-/**
- * @brief Count amount and get the readable data in the input buffer
- * 
- * @param data pointer to a vector
- * 
- * @return Returns how many readable bytes are in the input buffer
- */
-byte UART_ReadData(byte** data);
-
-/**
- * @brief Remove data from input buffer
- * 
- * @param amount Amount of data to remove from input buffer
- */
-void UART_RemoveData(byte amount);
+bool Serial_ReadByte(byte* data);
 
 /**
  * @brief Receive interrupt handler
- * 
+ *
  * On receive interrupt, received byte is stored in input buffer
  */
-void UART_ReceiveEventHandle(void);
+void Serial_ReceiveEventHandle(void);
 
 #endif	/* _UART_H_ */
 
