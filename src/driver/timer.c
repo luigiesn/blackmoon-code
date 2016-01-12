@@ -17,15 +17,18 @@
  */
 
 #include "../../include/driver/timer.h"
+#include "../../include/driver/serial.h"
 
 #define TIMER0_PRESCALER 0b001 // 1:4
 #define TIMER0_PRELOAD 55 // 200 increments to overflow (100us)
 
-#define COUNT_PER_TICK 10
+#define COUNT_PER_HWTICK 10
 
 static struct {
     UINT16 time;
     byte auxTimerCounter;
+
+    UINT16 lastTime;
 } Prv;
 
 static Timer* timers[NUM_MAX_TIMERS]; // all timers
@@ -42,7 +45,6 @@ void TIMER_Bootstrap() {
     T0CONbits.PSA = 0; // assigns prescaler to timer0
 
     TMR0 = TIMER0_PRELOAD;
-    T0CONbits.TMR0ON = 1; // turns on timer0
 
     byte i;
     for (i = 0; i < NUM_MAX_TIMERS; i++) {
@@ -51,16 +53,53 @@ void TIMER_Bootstrap() {
 
     Prv.time = 0;
     Prv.auxTimerCounter = 0;
+    Prv.lastTime = 0;
+
+    T0CONbits.TMR0ON = 1; // turns on timer0
 }
 
-bool TIMER_Create(Timer* timer, bool autoReload, TimerCallbackFunction pCallbackFunction) {
+void TIMER_Process(void) {
+    byte i;
+    UINT16 timeNow = Prv.time;
+    UINT16 timeBetweenTimerProcessCalls;
+
+    // calculate time elapsed between TIMER_Process() calls
+    if (timeNow >= Prv.lastTime) {
+        timeBetweenTimerProcessCalls = timeNow - Prv.lastTime;
+    } else {
+        timeBetweenTimerProcessCalls = 65535 - (Prv.lastTime - timeNow);
+    }
+    Prv.lastTime = timeNow;
+
+    // check all timers
+    for (i = 0; timers[i] != NULL; i++) {
+        if (timers[i]->enabled == true) {
+            if (timers[i]->elapsedTime >= timers[i]->period) { // if time passed enough
+                timers[i]->pCallbackFunction(); // call
+
+                if (timers[i]->autoReload == true) { // if reload option is true
+                    timers[i]->elapsedTime = 0; // reset elapsed time counting
+                } else {
+                    timers[i]->enabled = false; // if not, turn-off this timer
+                }
+            } else {
+                if (65535 - timers[i]->elapsedTime >= timeBetweenTimerProcessCalls) {
+                    timers[i]->elapsedTime + timeBetweenTimerProcessCalls; // if not, increment elapsed time
+                } else {
+                    timers[i]->elapsedTime = 65535; // if elapsed time exceeds maximum period, force to call on next time
+                }
+            }
+        }
+    }
+}
+
+bool TIMER_Create(Timer* timer, TimerCallbackFunction pCallbackFunction) {
     byte i;
     for (i = 0; i < NUM_MAX_TIMERS; i++) {
         if (timers[i] == NULL) { // if there is a slot
-            timer->autoReload = autoReload;
-            timer->pCallbackFunction = pCallbackFunction;
-
             timers[i] = timer; // storage the timer
+
+            timer->pCallbackFunction = pCallbackFunction;
             return true;
         }
     }
@@ -71,12 +110,8 @@ void TIMER_SetPeriod(Timer* timer, UINT16 period) {
     timer->period = period;
 }
 
-void TIMER_Start(Timer* timer) {
-    UINT16 timeNow = Prv.time;
-
-    timer->triggerTime = timer->period + timeNow; // set trigger timer
-    timer->needToOverflow = timer->triggerTime > timeNow ? false : true;
-
+void TIMER_Start(Timer* timer, bool autoReload) {
+    timer->autoReload = autoReload;
     timer->enabled = true; // enable
 }
 
@@ -88,29 +123,9 @@ void TIMER_HwEventHandle(void) {
     TMR0 = TIMER0_PRELOAD; // reload
 
     Prv.auxTimerCounter++;
-    if (Prv.auxTimerCounter >= COUNT_PER_TICK) {
+    if (Prv.auxTimerCounter >= COUNT_PER_HWTICK) {
         Prv.time++;
         Prv.auxTimerCounter = 0;
-    }
-
-    byte i;
-
-    for (i = 0; timers[i] != NULL; i++) {
-        if (timers[i]->enabled == true) {
-            if (timers[i]->needToOverflow) {
-                timers[i]->needToOverflow = false;
-            } else if (Prv.time >= timers[i]->triggerTime) {
-                timers[i]->pCallbackFunction();
-
-                if (timers[i]->autoReload == true) {
-                    timers[i]->triggerTime = timers[i]->period + Prv.time; // set trigger timer
-                    timers[i]->needToOverflow = timers[i]->triggerTime > Prv.time ? false : true;
-                } else {
-                    timers[i]->enabled = false;
-                }
-            }
-
-        }
     }
 }
 

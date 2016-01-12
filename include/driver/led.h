@@ -29,7 +29,7 @@
 
 
 #define LED_CONST_OFF 0
-#define LED_SLOW 200 // ms (ton and toff)
+#define LED_SLOW 500 // ms (ton and toff)
 #define LED_FAST 50 // ms
 #define LED_CONST_ON 65535
 

@@ -28,8 +28,8 @@
 #define START_BYTE 0x30
 #define END_BYTE 0x35
 
-#define RXBUFFER_SIZE 5 // bytes
-#define TXBUFFER_SIZE 6 // bytes
+#define RXBUFFER_SIZE 15 // bytes
+#define TXBUFFER_SIZE 16 // bytes
 
 typedef enum {
     usOPERATING
@@ -113,9 +113,9 @@ void Serial_RxProcess(void) {
             if (readCnt == 1) {
                 input.parameter = temp;
             } else if (readCnt == 2) {
-                input.value = temp;
+                input.value = temp << 8;
             } else if (readCnt == 3) {
-                input.value += (temp << 8);
+                input.value += temp;
             }
             readCnt++;
         }

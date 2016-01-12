@@ -25,7 +25,7 @@
 
 /* Data format:
  * <--------------LENGTH---------------->
- * OPEN | PARAM | DATA_H | DATA_L | CLOSE
+ * OPEN | PARAM |      DATA       | CLOSE
  *                <----16-bits--->
  */
 

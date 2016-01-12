@@ -32,19 +32,19 @@ void LED_Bootstrap(void) {
 }
 
 void LED_Init(void) {
-    TIMER_Create(&Prv.ledTimer, true, LED_Change);
+    TIMER_Create(&Prv.ledTimer, LED_Change);
 }
 
 void LED_Mode(UINT16 period) {
     if (period == LED_CONST_OFF) {
         TIMER_Stop(&Prv.ledTimer);
         LED_ForceOff();
-    } else if (period == LED_CONST_OFF) {
+    } else if (period == LED_CONST_ON) {
         TIMER_Stop(&Prv.ledTimer);
         LED_ForceOn();
     } else {
         TIMER_SetPeriod(&Prv.ledTimer, period);
-        TIMER_Start(&Prv.ledTimer);
+        TIMER_Start(&Prv.ledTimer, true);
     }
 }
 
