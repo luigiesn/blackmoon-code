@@ -9,9 +9,10 @@ The board uses a PIC18F1330
 ## TODO list:
 
 Low-level
-- Check the bridge code (only can be made with the schematics)
+- Finish the ADC driver
+- Finish the eeprom manager
 
 High-level
 - Implement all the data flow from uart to the ram and vice-versa when needed.
 - All PID code
-- Integrate all drivers to make a closed loop
+- Integrate all drivers to make a closed loop (app.c)
