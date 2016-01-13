@@ -31,7 +31,7 @@ static struct {
     UINT16 lastTime;
 } Prv;
 
-static Timer* timers[NUM_MAX_TIMERS]; // all timers
+volatile Timer* timers[NUM_MAX_TIMERS]; // all timers
 
 void TIMER_Bootstrap() {
     // Timer0 Interrupt
@@ -84,7 +84,7 @@ void TIMER_Process(void) {
                 }
             } else {
                 if (65535 - timers[i]->elapsedTime >= timeBetweenTimerProcessCalls) {
-                    timers[i]->elapsedTime + timeBetweenTimerProcessCalls; // if not, increment elapsed time
+                    timers[i]->elapsedTime += timeBetweenTimerProcessCalls; // if not, increment elapsed time
                 } else {
                     timers[i]->elapsedTime = 65535; // if elapsed time exceeds maximum period, force to call on next time
                 }
@@ -98,7 +98,6 @@ bool TIMER_Create(Timer* timer, TimerCallbackFunction pCallbackFunction) {
     for (i = 0; i < NUM_MAX_TIMERS; i++) {
         if (timers[i] == NULL) { // if there is a slot
             timers[i] = timer; // storage the timer
-
             timer->pCallbackFunction = pCallbackFunction;
             return true;
         }
