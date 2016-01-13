@@ -18,79 +18,94 @@
 
 #include "../../include/driver/bridge.h"
 
-typedef enum {
-    brgsIDLE, brgsCHANGE_DIR
-} BRG_State;
+#define IN1_PIN 0
+#define IN2_PIN 1
+#define SD1_PIN 2
+#define SD2_PIN 3
 
-static struct {
-    BRG_State state;
+inline void Bridge_SetDuty(UINT16 duty);
+inline bool Bridge_BreakEnabled(void);
+inline void Bridge_OverridePwm(const unsigned char pin, bool value);
+inline void Bridge_AllowPwm(const unsigned char pin);
 
-    UniDimVector bridgeDir;
+void Bridge_Bootstrap() {
+    PTCON0 = 0x00;
 
-} Prv;
+    PWMCON0 = 0x37; // All PWM I/O pins enabled for PWM output, PWM I/O pin pair is in the Independent mode
 
-void BRG_Boostrap() {
-    BRG_Off();
+    PTMRL = 0x00; // cleans PWM timebase
+
+    PTCON0bits.PTOPS = PWM_TIMEBASE_POSTSCALER;
+
+    // disable all outputs
+    Bridge_OverridePwm(IN1_PIN, false);
+    Bridge_OverridePwm(IN2_PIN, false);
+    Bridge_OverridePwm(SD1_PIN, false);
+    Bridge_OverridePwm(SD2_PIN, false);
+
+    OSYNC = 0; //Output overrides via the OVDCON register are synchronized to the PWM time base
+
+    // config PWM period
+    PTPERH = PWM_PERIOD >> 8; //  t = ((PTPER + 1) x PTMRPS)/(FOSC/4)
+    PTPERL = PWM_PERIOD;
+
+    // config intial duty-cicle (zero)
+    PDC1L = 0;
+    PDC1H = 0;
+
+    PTCON1 |= 0x80; // run
 }
 
-void BRG_Init() {
-    Prv.state = brgsIDLE;
+void Bridge_Init(void) {
 }
 
-void BRG_Process() {
-    switch (Prv.state) {
-        case brgsIDLE:
-        {
-            break;
-        }
-        case brgsCHANGE_DIR:
-        {
-            if (Prv.bridgeDir == DIR_A) { // DIR_A
-                BRIDGE_PWM1_OVERRIDE_VALUE = 1; // override value from left-side driver input
-                BRIDGE_PWM1_STATE(INACTIVE); // deactivate left-side driver PWM
-                BRIDGE_IN1(0); // turn on lower mosfet
+void Bridge_On(void) {
+    Bridge_AllowPwm(SD1_PIN);
+    Bridge_AllowPwm(SD2_PIN);
+}
 
-                BRIDGE_PWM2_STATE(ACTIVE);
-                BRIDGE_IN2(1); // turn-on PWM on upper mosfet on right-side driver
-            } else if (Prv.bridgeDir == DIR_B) { // DIR_B
-                BRIDGE_PWM2_OVERRIDE_VALUE = 1;
-                BRIDGE_PWM2_STATE(INACTIVE);
-                BRIDGE_IN2(0);
+void Bridge_Off(void) {
+    Bridge_OverridePwm(SD1_PIN, false);
+    Bridge_OverridePwm(SD2_PIN, false);
+    Bridge_OverridePwm(IN1_PIN, false);
+    Bridge_OverridePwm(IN2_PIN, false);
+}
 
-                BRIDGE_PWM1_STATE(ACTIVE);
-                BRIDGE_IN1(1);
-            } else if (HW_BreakEnabled() && (Prv.bridgeDir == NEUTRAL)) {
-                BRG_LoadShortCircuit();
-            }
-            Prv.state = brgsIDLE;
-            break;
-        }
+void Bridge_SetOutput(BridgeDirection brgDir, UINT16 duty) {
+    Bridge_SetDuty(duty);
+
+    if (brgDir == bdForward) {
+        Bridge_OverridePwm(SD2_PIN, 1); // bridge left side
+        Bridge_OverridePwm(IN2_PIN, 0);
+
+        Bridge_OverridePwm(IN1_PIN, 1); // bridge right side
+        Bridge_AllowPwm(SD1_PIN);
+    } else {
+        Bridge_OverridePwm(SD1_PIN, 1); // bridge left side
+        Bridge_OverridePwm(IN1_PIN, 0);
+
+        Bridge_OverridePwm(IN2_PIN, 1); // bridge right side
+        Bridge_AllowPwm(SD2_PIN);
     }
 }
 
-void BRG_DirSet(UniDimVector brgDir) {
-    Prv.bridgeDir = brgDir;
-    Prv.state = brgsCHANGE_DIR;
+inline void Bridge_SetDuty(UINT16 duty) {
+    if (duty > PWM_DUTYMAX) {
+        duty = PWM_DUTYMAX;
+    }
+    PDC1L = duty;
+    PDC1H = duty >> 8;
 }
 
-UniDimVector BRG_DirGet() {
-    return Prv.bridgeDir;
+inline bool Bridge_BreakEnabled(void) {
+    return !PORTBbits.RB7 ? true : false;
 }
 
-void BRG_LoadShortCircuit() {
-    BRIDGE_IN1(0);
-    BRIDGE_IN2(0);
-    BRIDGE_PWM1_OVERRIDE_VALUE = 1;
-    BRIDGE_PWM2_OVERRIDE_VALUE = 1;
-    BRIDGE_PWM1_STATE(INACTIVE);
-    BRIDGE_PWM2_STATE(INACTIVE);
+inline void Bridge_OverridePwm(const unsigned char pin, bool value) {
+    OVDCOND &= ~(1UL << pin);
+    OVDCONS = value ? (OVDCONS | (1UL << pin)) : (OVDCONS & (~(1UL << pin)));
 }
 
-void BRG_On() {
-    OVDCOND = 0xFF; // todos em override
-}
-
-void BRG_Off() {
-    OVDCOND = 0x00; // todos em override
-    OVDCONS = 0x00; // valor de override do PWM, todos em baixo
+inline void Bridge_AllowPwm(const unsigned char pin) {
+    OVDCOND |= (1UL << pin);
 }

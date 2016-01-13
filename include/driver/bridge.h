@@ -23,35 +23,27 @@
 #include "../defs.h"
 
 /*
-* Driver 1 : RB2 e RB4(PWM2)
-* Driver 2 : RB3 e RB5(PWM3)
-*/
+ * Driver 1 : RB2 e RB4(PWM2)
+ * Driver 2 : RB3 e RB5(PWM3)
+ */
 
-#define ACTIVE 1
-#define INACTIVE 0
+// PWM defs
+#define PWM_PERIOD 270                  // 29,52kHz
+#define PWM_DUTYMAX 1023                //10 bits resolution - 94,72% (270*4*0,9472)
+#define PWM_TIMEBASE_POSTSCALER 1       // 1 to 16
 
-#define HW_BreakEnabled() (!PORTBbits.RB7)
+typedef enum {
+    bdForward, bdBackward
+} BridgeDirection;
 
-#define BRIDGE_IN1(IN) (POUT0 = IN)  // ligado ao pino IN
-#define BRIDGE_IN2(IN) (POUT1 = IN)
 
-#define BRIDGE_PWM1_OVERRIDE_VALUE (POUT2) // ligado ao pino nSD
-#define BRIDGE_PWM2_OVERRIDE_VALUE (POUT3)
+void Bridge_Bootstrap(void);
+void Bridge_Init(void);
 
-#define BRIDGE_PWM1_STATE(STATE) (POVD2 = STATE)
-#define BRIDGE_PWM2_STATE(STATE) (POVD3 = STATE)
+void Bridge_On(void);
+void Bridge_Off(void);
 
-void BRG_Boostrap(void);
-void BRG_Init(void);
-void BRG_Process(void);
-
-void BRG_DirSet(UniDimVector brgDir);
-UniDimVector BRG_DirGet(void);
-
-void BRG_LoadShortCircuit(void);
-
-void BRG_On(void);
-void BRG_Off(void);
+void Bridge_SetOutput(BridgeDirection brgDir, UINT16 duty);
 
 #endif	/* _BRIDGE_H_ */
 

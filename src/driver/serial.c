@@ -19,8 +19,8 @@
 #include <pic18f1330.h>
 
 #include "../../include/driver/serial.h"
+#include "../../include/driver/bridge.h"
 #include "../../include/ringbuffer.h"
-#include "../../include/driver/led.h"
 
 #define UART_BRG 138
 
@@ -122,7 +122,12 @@ void Serial_RxProcess(void) {
         if (readCnt == PROTOCOL_LENGTH) {
             readCnt = 0;
             if (input.parameter == BOARD_STATUS) {
-                LED_Mode(input.value);
+                input.value = input.value >> 5;
+                if (input.value >= 1023)
+                    Bridge_SetOutput(bdForward, input.value - 1023);
+                else
+                    Bridge_SetOutput(bdBackward, 1023 - input.value);
+                //LED_Mode(input.value);
             }
         }
     }

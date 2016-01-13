@@ -23,6 +23,7 @@
 #include "../include/driver/timer.h"
 #include "../include/driver/serial.h"
 #include "../include/driver/adc.h"
+#include "../include/driver/bridge.h"
 #include "../include/app.h"
 
 void SystemInit(void);
@@ -36,6 +37,7 @@ void BlackmoonServo(void) {
     ADC_Bootstrap();
     TIMER_Bootstrap();
     LED_Bootstrap();
+    Bridge_Bootstrap();
     Serial_Boostrap();
 
     App_Boostrap();

@@ -36,10 +36,12 @@ void App_Boostrap(void) {
 }
 
 void App_Init(void) {
-    LED_Mode(LED_CONST_ON);
+    LED_Mode(LED_SLOW);
 
     ADC_SelectChannel(ADC_FEEDBACK_CH);
     ADC_Start();
+
+    Bridge_On(); //
 
     //    TIMER_Create(&Prv.PIDtimer, true, ADC_Convert);
     //    TIMER_SetPeriod(&Prv.PIDtimer, 500);

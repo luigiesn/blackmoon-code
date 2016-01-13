@@ -30,7 +30,25 @@
  */
 
 ///// PARAMETERS
-// board status
+
+/////// Blackmoon
+// base config
+#define RESET 0
+#define FUNC 1
+#define V_MAX 7
+#define V_MIN 8
+
+// radio
+#define RMAX 2
+#define RCEN 3
+#define RMIN 4
+
+// pwm
+#define SOFTSTARTER 5
+#define PWM_FREQ 6
+#define SDC 9
+
+/////// Blackmoon Servo
 #define BOARD_STATUS 0
 
 // PID loop
