@@ -16,9 +16,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pic18f1330.h>
-
 #include "../../include/driver/adc.h"
+
+#define SEVT_VALUE 1
 
 static struct {
     UINT16 conversionBuffer;
@@ -29,6 +29,8 @@ void ADC_Bootstrap(void) {
 #if ADC_TRG_SRC == PWM_TIME_BASE
     ADCON0 = 0x80; // triggered by PWM time base, adc off
     PWMCON1bits.SEVOPS = PWM_TIME_BASE_POSTSCALER - 1;
+    SEVTCMPH = SEVT_VALUE >> 8;
+    SEVTCMPL = SEVT_VALUE & 0xFF;
 #endif // ADC_TRG_SRC == PWM_TIME_BASE
 
 #if ADC_TRG_SRC == MANUAL
@@ -36,12 +38,13 @@ void ADC_Bootstrap(void) {
 #endif // ADC_TRG_SRC == MANUAL
 
     ADCON1bits.PCFG = 0x04; // AN0, AN1 and AN3 are active as analog input
+
     ADCON2 = 0xba; // 32 TAD(total), TAD = TOSC*32
 
     // Interrupt configuration
     IPR1bits.ADIP = 0; // low priority flag to ADC interrupt
-    PIE1bits.ADIE = 1; // enable ADC interrupt
     PIR1bits.ADIF = 0; // clean ADC flag
+    PIE1bits.ADIE = 1; // enable ADC interrupt
 
     Prv.newSample = false;
 }
@@ -57,11 +60,11 @@ void ADC_SelectChannel(byte channel) {
 }
 
 void ADC_Start(void) {
-    ADCON0 |= 0x01;
+    ADCON0bits.ADON = true;
 }
 
 void ADC_Stop(void) {
-    ADCON0 &= 0xfe;
+    ADCON0bits.ADON = false;
 }
 
 UINT16 ADC_Read(void) {
@@ -76,5 +79,6 @@ bool ADC_NewSample(void) {
 void ADC_ConversionDoneEventHandle(void) {
     Prv.conversionBuffer = (UINT16) ADRES;
     Prv.newSample = true;
+
 }
 

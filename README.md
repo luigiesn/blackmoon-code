@@ -9,7 +9,6 @@ The board uses a PIC18F1330
 ## TODO list:
 
 Low-level
-- Finish the ADC driver
 - Finish the eeprom manager
 
 High-level
