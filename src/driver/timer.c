@@ -17,7 +17,6 @@
  */
 
 #include "../../include/driver/timer.h"
-#include "../../include/driver/serial.h"
 
 #define TIMER0_PRESCALER 0b001 // 1:4
 #define TIMER0_PRELOAD 55 // 200 increments to overflow (100us)

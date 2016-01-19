@@ -28,7 +28,7 @@
  */
 
 // PWM defs
-#define PWM_PERIOD 270                  // 29,52kHz
+#define PWM_PERIOD 270                  // 29,52kHz ((32000000/4)/(270+1))
 #define PWM_DUTYMAX 1023                //10 bits resolution - 94,72% (270*4*0,9472)
 #define PWM_TIMEBASE_POSTSCALER 1       // 1 to 16
 

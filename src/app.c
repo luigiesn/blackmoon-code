@@ -32,7 +32,7 @@ static struct {
 } Prv;
 
 void App_Boostrap(void) {
-    Prv.mode = MODE;
+    Prv.mode = TEST;
 }
 
 void App_Init(void) {
@@ -42,10 +42,10 @@ void App_Init(void) {
     ADC_Start();
 
     Bridge_On(); //
-
-    //    TIMER_Create(&Prv.PIDtimer, true, ADC_Convert);
-    //    TIMER_SetPeriod(&Prv.PIDtimer, 500);
-    //    TIMER_Start(&Prv.PIDtimer);
+    //
+    //    TIMER_Create(&Prv.PIDtimer, send_adc);
+    //    TIMER_SetPeriod(&Prv.PIDtimer, 10);
+    //    TIMER_Start(&Prv.PIDtimer, true);
 }
 
 void App_Process(void) {
@@ -56,7 +56,6 @@ void App_Process(void) {
         }
         case asTEST:
         {
-
             break;
         }
     }

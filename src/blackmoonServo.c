@@ -24,14 +24,19 @@
 #include "../include/driver/serial.h"
 #include "../include/driver/adc.h"
 #include "../include/driver/bridge.h"
+#include "../include/driver/eeprom.h"
 #include "../include/app.h"
 
 void SystemInit(void);
+void InterruptsDisable(void);
+void InterruptsEnable(void);
 
 void BlackmoonServo(void) {
 
     // Initial setup
     SystemInit();
+
+    InterruptsDisable();
 
     // bootstrap all drivers
     ADC_Bootstrap();
@@ -39,17 +44,21 @@ void BlackmoonServo(void) {
     LED_Bootstrap();
     Bridge_Bootstrap();
     Serial_Boostrap();
-
+    EEPROM_Boostrap();
     App_Boostrap();
+
+    InterruptsEnable();
 
     // initialize all drivers
     LED_Init();
+    EEPROM_Init();
     App_Init();
 
     // run all processes in loop
     for (;;) {
         Serial_TxProcess();
         Serial_RxProcess();
+        EEPROM_Process();
         TIMER_Process();
 
         App_Process();
@@ -70,12 +79,6 @@ void interrupt low_priority LowPriorISR(void) {
         TIMER_HwEventHandle();
     }
 
-    /*
-        if (PIE1bits.TMR1IE && PIR1bits.TMR1IF) { // TIMER1
-            PIR1bits.TMR1IF = 0; // clean flag
-        }
-     */
-
     if (PIE1bits.ADIE && PIR1bits.ADIF) { // ADC
         PIR1bits.ADIF = 0; // clean flag
         ADC_ConversionDoneEventHandle();
@@ -92,17 +95,18 @@ void SystemInit() {
     OSCCONbits.IRCF = 0x7;
     OSCCONbits.SCS = 0x0;
     OSCTUNEbits.PLLEN = 0x1;
+}
 
-    // Interrupt Global Configuration
+void InterruptsDisable(void) {
+    RCONbits.IPEN = 0; // enables interrupt
+    INTCONbits.GIEH = 0; // enables high-priority interrupts
+    INTCONbits.GIEL = 0; // enables low-priority interrupts
+}
+
+void InterruptsEnable(void) {
     RCONbits.IPEN = 1; // enables interrupt
     INTCONbits.GIEH = 1; // enables high-priority interrupts
     INTCONbits.GIEL = 1; // enables low-priority interrupts
-    /*
-    // Timer1 Interrupt
-    PIE1bits.TMR1IE = 1; // enables timer1 interrupt
-    IPR1bits.TMR1IP = 0; // low priority interrupt
-     */
-
 }
 
 

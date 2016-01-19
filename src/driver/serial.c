@@ -21,6 +21,7 @@
 #include "../../include/driver/serial.h"
 #include "../../include/driver/bridge.h"
 #include "../../include/ringbuffer.h"
+#include "../../include/driver/eeprom.h"
 
 #define UART_BRG 138
 
@@ -56,21 +57,22 @@ static byte rxBuffer[RXBUFFER_SIZE];
 static byte txBuffer[TXBUFFER_SIZE];
 
 void Serial_Boostrap() {
-    // UART Interrupts
-    IPR1bits.RCIP = 1; // high priority flag to rx interrupt
-    PIE1bits.RCIE = 1; // enable uart received interrupt
-
     SPEN = 1; // Serial Port Enable bit
     CREN = 1; // Continuous Receive Enable bit
 
     RXDTP = 0; // Received Data Polarity Select bit(if RX = 1, data is inverted)
-    SPBRGH = UART_BRG >> 8; // 9615bps
-    SPBRG = UART_BRG; // 9615bps
+
+    SPBRGH = UART_BRG >> 8;
+    SPBRG = UART_BRG;
     BRG16 = 1;
     BRGH = 1;
 
     TXEN = 1; // Transmision Enabled
     SYNC = 0; // async
+
+    // UART Interrupts
+    IPR1bits.RCIP = 1; // high priority flag to rx interrupt
+    PIE1bits.RCIE = 1; // enable uart received interrupt
 
     ringbufferInit(&Prv.txRingbuffer, txBuffer, TXBUFFER_SIZE);
 
@@ -119,17 +121,57 @@ void Serial_RxProcess(void) {
             }
             readCnt++;
         }
-        if (readCnt == PROTOCOL_LENGTH) {
-            readCnt = 0;
-            if (input.parameter == BOARD_STATUS) {
-                input.value = input.value >> 5;
-                if (input.value >= 1023)
-                    Bridge_SetOutput(bdForward, input.value - 1023);
-                else
-                    Bridge_SetOutput(bdBackward, 1023 - input.value);
-                //LED_Mode(input.value);
+        if (readCnt == PROTOCOL_LENGTH && temp != END_BYTE) {
+            switch (input.value) {
+                case PID_KP:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_KP_ADDR);
+                    break;
+                }
+                case PID_KI:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_KI_ADDR);
+                    break;
+                }
+                case PID_KD:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_KD_ADDR);
+                    break;
+                }
+                case PID_KS:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_KS_ADDR);
+                    break;
+                }
+                case PID_SET_POINT:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_SET_POINT_ADDR);
+                    break;
+                }
+                case OUTPUT_MAX:
+                {
+                    EEPROM_VirtualWrite16(&input.value, OUTPUT_MAX_ADDR);
+                    break;
+                }
+                case INPUT_MAX:
+                {
+                    EEPROM_VirtualWrite16(&input.value, INPUT_MAX_ADDR);
+                    break;
+                }
+                case DEADZONE:
+                {
+                    EEPROM_VirtualWrite16(&input.value, DEADZONE_ADDR);
+                    break;
+                }
+                case PID_PERIOD:
+                {
+                    EEPROM_VirtualWrite16(&input.value, PID_PERIOD_ADDR);
+                    break;
+                }
             }
+            //LED_Mode(input.value);
         }
+
     }
 }
 

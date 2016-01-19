@@ -18,7 +18,7 @@
 
 #include "../../include/driver/adc.h"
 
-#define SEVT_VALUE 1
+#define SEVT_VALUE 1 // value(non-zero) to trigger Special Event when compared to PTMR
 
 static struct {
     UINT16 conversionBuffer;

@@ -27,7 +27,7 @@
 
 #define ADC_TRG_SRC PWM_TIME_BASE
 
-#define PWM_TIME_BASE_POSTSCALER 16 // 1 to 16
+#define PWM_TIME_BASE_POSTSCALER 15 // 1.968kS = 29.52kHz/15  // POSTCALER = 1 to 16
 
 void ADC_Bootstrap(void);
 
