@@ -16,12 +16,13 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pic18f1330.h>
-
 #include "../../include/driver/serial.h"
+
 #include "../../include/driver/bridge.h"
 #include "../../include/ringbuffer.h"
 #include "../../include/driver/eeprom.h"
+#include "../../include/eeprom_map.h"
+#include "../../include/serial_commands.h"
 
 #define UART_BRG 138
 
@@ -57,11 +58,6 @@ static byte rxBuffer[RXBUFFER_SIZE];
 static byte txBuffer[TXBUFFER_SIZE];
 
 void Serial_Boostrap() {
-    SPEN = 1; // Serial Port Enable bit
-    CREN = 1; // Continuous Receive Enable bit
-
-    RXDTP = 0; // Received Data Polarity Select bit(if RX = 1, data is inverted)
-
     SPBRGH = UART_BRG >> 8;
     SPBRG = UART_BRG;
     BRG16 = 1;
@@ -74,6 +70,12 @@ void Serial_Boostrap() {
     IPR1bits.RCIP = 1; // high priority flag to rx interrupt
     PIE1bits.RCIE = 1; // enable uart received interrupt
 
+    SPEN = 1; // Serial Port Enable bit
+    CREN = 1; // Continuous Receive Enable bit
+
+    RXDTP = 0; // Received Data Polarity Select bit(if RX = 1, data is inverted)
+
+    /* internal variables intialization */
     ringbufferInit(&Prv.txRingbuffer, txBuffer, TXBUFFER_SIZE);
 
     Prv.elems = 0;
@@ -112,66 +114,68 @@ void Serial_RxProcess(void) {
 
     if (Serial_ReadByte(&temp)) {
         if (temp == START_BYTE || readCnt) {
-            if (readCnt == 1) {
-                input.parameter = temp;
-            } else if (readCnt == 2) {
-                input.value = temp << 8;
-            } else if (readCnt == 3) {
-                input.value += temp;
-            }
             readCnt++;
-        }
-        if (readCnt == PROTOCOL_LENGTH && temp != END_BYTE) {
-            switch (input.value) {
-                case PID_KP:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_KP_ADDR);
-                    break;
-                }
-                case PID_KI:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_KI_ADDR);
-                    break;
-                }
-                case PID_KD:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_KD_ADDR);
-                    break;
-                }
-                case PID_KS:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_KS_ADDR);
-                    break;
-                }
-                case PID_SET_POINT:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_SET_POINT_ADDR);
-                    break;
-                }
-                case OUTPUT_MAX:
-                {
-                    EEPROM_VirtualWrite16(&input.value, OUTPUT_MAX_ADDR);
-                    break;
-                }
-                case INPUT_MAX:
-                {
-                    EEPROM_VirtualWrite16(&input.value, INPUT_MAX_ADDR);
-                    break;
-                }
-                case DEADZONE:
-                {
-                    EEPROM_VirtualWrite16(&input.value, DEADZONE_ADDR);
-                    break;
-                }
-                case PID_PERIOD:
-                {
-                    EEPROM_VirtualWrite16(&input.value, PID_PERIOD_ADDR);
-                    break;
+
+            if (readCnt == 2) {
+                input.parameter = temp;
+            } else if (readCnt == 3) {
+                input.value = temp << 8;
+            } else if (readCnt == 4) {
+                input.value += temp;
+            } else if (readCnt == PROTOCOL_LENGTH) {
+                readCnt = 0;
+                if (temp == END_BYTE) {
+                    switch (input.parameter) {
+                        case PID_KP:
+                        {
+                            EEPROM_Write(input.value, PID_KP_ADDR);
+                            break;
+                        }
+                        case PID_KI:
+                        {
+                            EEPROM_Write(input.value, PID_KI_ADDR);
+                            break;
+                        }
+                        case PID_KD:
+                        {
+                            EEPROM_Write(input.value, PID_KD_ADDR);
+                            break;
+                        }
+                        case PID_KS:
+                        {
+                            EEPROM_Write(input.value, PID_KS_ADDR);
+                            break;
+                        }
+                        case PID_SET_POINT:
+                        {
+                            EEPROM_Write(input.value, PID_SET_POINT_ADDR);
+                            break;
+                        }
+                        case OUTPUT_MAX:
+                        {
+                            EEPROM_Write(input.value, OUTPUT_MAX_ADDR);
+                            break;
+                        }
+                        case INPUT_MAX:
+                        {
+                            EEPROM_Write(input.value, INPUT_MAX_ADDR);
+                            break;
+                        }
+                        case DEADZONE:
+                        {
+                            EEPROM_Write(input.value, DEADZONE_ADDR);
+                            break;
+                        }
+                        case PID_PERIOD:
+                        {
+                            EEPROM_Write(input.value, PID_PERIOD_ADDR);
+
+                            break;
+                        }
+                    }
                 }
             }
-            //LED_Mode(input.value);
         }
-
     }
 }
 
@@ -214,6 +218,7 @@ bool Serial_ReadByte(byte* data) {
         *data = rxBuffer[Prv.readCnt];
         Prv.readCnt++;
         if (Prv.readCnt == Prv.rxCnt) {
+
             Prv.readCnt = 0;
             Prv.rxCnt = 0;
         }

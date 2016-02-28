@@ -18,14 +18,13 @@
 
 #include "../../include/driver/timer.h"
 
-#define TIMER0_PRESCALER 0b001 // 1:4
-#define TIMER0_PRELOAD 55 // 200 increments to overflow (100us)
+#define TIMER0_PRESCALER 0b100 // 1:4
+#define TIMER0_PRELOAD 5 // 250 increments to overflow whith 1:32 prescale value (1us)
 
 #define COUNT_PER_HWTICK 10
 
 static struct {
     UINT16 time;
-    byte auxTimerCounter;
 
     UINT16 lastTime;
 } Prv;
@@ -51,7 +50,6 @@ void TIMER_Bootstrap() {
     }
 
     Prv.time = 0;
-    Prv.auxTimerCounter = 0;
     Prv.lastTime = 0;
 
     T0CONbits.TMR0ON = 1; // turns on timer0
@@ -119,12 +117,7 @@ void TIMER_Stop(Timer* timer) {
 
 void TIMER_HwEventHandle(void) {
     TMR0 = TIMER0_PRELOAD; // reload
-
-    Prv.auxTimerCounter++;
-    if (Prv.auxTimerCounter >= COUNT_PER_HWTICK) {
-        Prv.time++;
-        Prv.auxTimerCounter = 0;
-    }
+    Prv.time++;
 }
 
 

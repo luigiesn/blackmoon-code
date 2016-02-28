@@ -18,8 +18,27 @@
 
 #include "../../include/driver/eeprom.h"
 
+/* define mem map size */
+#define AUX_MAP_SIZE (EEPROM_PHYSICAL_SIZE/8)
+#if EEPROM_PHYSICAL_SIZE % 8 != 0
+    #define MAP_SIZE (AUX_MAP_SIZE+1)
+#else
+    #define MAP_SIZE (AUX_MAP_SIZE)
+#endif
+
+/* define mem max size */
+#if (EEPROM_PHYSICAL_SIZE - 1 > 4294967295)
+    #error EEPROM_PHYSICAL_SIZE must be less or equal than 4294967296 bytes
+#endif
+
+/* mem size verification */
+#define EEPROM_USED_SPACE (VIRTUAL_EEPROM_SIZE*VIRTUAL_EEPROM_WSIZE)
+#if EEPROM_USED_SPACE > EEPROM_PHYSICAL_SIZE
+    #error The product of VIRTUAL_EEPROM_SIZE and VIRTUAL_EEPROM_WSIZE must be less or equal than EEPROM_PHYSICAL_SIZE
+#endif
+
 typedef enum {
-    esINIT_VIRTUAL_EEPROM, esVERIFY_DIFF
+    esIDLE, esLOAD_TO_RAM, esCHEKING_INTEGRITY
 } eepromState;
 
 static struct {
@@ -27,21 +46,13 @@ static struct {
 } Prv;
 
 static byte virtualEEPROM[VIRTUAL_EEPROM_SIZE];
+static byte eepromChangesMap[MAP_SIZE];
 
-inline byte EEPROM_Read(byte address);
-inline bool EEPROM_Write(byte data, byte address);
-void EEPROM_UpdateByte(void);
+static inline void EEPROM_MarkChange(eeprom_address_t address);
+static inline void EEPROM_UnmarkChange(eeprom_address_t address);
 
 void EEPROM_Boostrap() {
-    EECON1bits.CFGS = 0; // acess eeprom or flash mem.
-    EECON1bits.EEPGD = 0; // acess eeprom mem.
-
-    // Interrupt configuration
-    IPR2bits.EEIP = 0; // low priority flag to eeprom write interrupt
-    PIE2bits.EEIE = 0; // enable eeprom write interrupt
-    PIR2bits.EEIF = 0; // clean interrup flag
-
-    Prv.state = esINIT_VIRTUAL_EEPROM;
+    Prv.state = esLOAD_TO_RAM;
 }
 
 void EEPROM_Init(void) {
@@ -49,83 +60,111 @@ void EEPROM_Init(void) {
 
 void EEPROM_Process() {
     switch (Prv.state) {
-        case esINIT_VIRTUAL_EEPROM:
+        case esIDLE:
         {
-            byte i;
-
-            for (i = 0; i < VIRTUAL_EEPROM_SIZE; i++) { // send to the RAM all eeprom data
-                virtualEEPROM[i] = EEPROM_Read(i + EEPROM_OFFSET);
-            }
-            Prv.state = esVERIFY_DIFF;
             break;
         }
-        case esVERIFY_DIFF:
-        {
-            byte i, i_aux;
 
-            // check eeprom for changes
-            for (i = 0; i < VIRTUAL_EEPROM_SIZE; i++) {
-                for (i_aux = 0x80; i_aux != 0; i_aux = i_aux >> 1) {
-                    if (EEPROM_Read(EEPROM_OFFSET + i) != virtualEEPROM[i]) {
-                        EEPROM_Write(virtualEEPROM[i], EEPROM_OFFSET + i);
-                    }
+        case esLOAD_TO_RAM:
+        {
+            static byte i = 0;
+
+            if (!EEPROM_HAL_Reading()) {
+                virtualEEPROM[i] = EEPROM_HAL_Read(i); /* Load eeprom to ram */
+                i++;
+            }
+            if (i == EEPROM_USED_SPACE) {
+                Prv.state = esCHEKING_INTEGRITY;
+            }
+
+            break;
+        }
+
+        case esCHEKING_INTEGRITY:
+        {
+            static byte mem_count = 0;
+            byte temp_address, block_aux, byteoffset_aux;
+            if (!EEPROM_HAL_Writing()) {
+
+                mem_count++;
+                if (mem_count == EEPROM_USED_SPACE) {
+                    mem_count = 0;
+                }
+
+                byteoffset_aux = mem_count % 8;
+                block_aux = mem_count >> 3; /* divide by eight */
+
+                if (eepromChangesMap[block_aux] & (0b1 << byteoffset_aux)) { /* check for diferences */
+                    temp_address = (block_aux * 8) + byteoffset_aux;
+
+                    /* Refresh eeprom */
+                    EEPROM_HAL_Write(virtualEEPROM[block_aux], temp_address);
+                    EEPROM_UnmarkChange(temp_address);
                 }
             }
             break;
         }
+
         default:
             break;
     }
-}
-
-void EEPROM_VirtualWrite8(byte* data, byte address) {
-    virtualEEPROM[address] = (*data);
 
 }
 
-void EEPROM_VirtualWrite16(UINT16* data, byte address) {
-    virtualEEPROM[address] = (*data) >> 8; // MSB | LSB
-    virtualEEPROM[address + 1] = (*data);
-
+void EEPROM_Write(eeprom_data_t data, eeprom_address_t address) {
+    if (((eeprom_data_t*) virtualEEPROM)[address] != data) { // MSB | LSB
+        ((eeprom_data_t*) virtualEEPROM)[address] = data;
+        EEPROM_MarkChange(address);
+    }
 }
 
-void EEPROM_VirtualRead8(byte* data, byte address) {
-    (*data) = virtualEEPROM[address];
+eeprom_data_t EEPROM_Read(eeprom_address_t address) {
+    return (eeprom_data_t) ((eeprom_data_t*) virtualEEPROM)[address];
 }
 
-void EEPROM_VirtualRead16(UINT16* data, byte address) {
-    (*data) = virtualEEPROM[address + 1];
-    (*data) = virtualEEPROM[address] << 8;
+static inline void EEPROM_MarkChange(eeprom_address_t address) {
+    eeprom_address_t block_aux, byteoffset_aux;
+
+    /* Each bit in a byte represents one byte and
+     * a group of 8 bits (a byte) represents a block.
+     * i.e. a 128 bytes are divided in 16 blocks
+     *
+     * To mark a memory space in use, the block number and
+     * bytes offset must be calculated.
+     * i.e. if 34th byte is in use, the block is the 4th (34/8)
+     *      and the byte offset is 2 (34%8).
+     *          In this case: block_aux = 4
+     *                        byteoffset_aux = 2
+     */
+
+    eeprom_address_t i;
+
+    for (i = 0; i < sizeof (eeprom_data_t); i++) {
+        block_aux = address >> 3; /* divide by eight */
+        byteoffset_aux = address % 8;
+        eepromChangesMap[block_aux] |= 0b1 << byteoffset_aux;
+
+        address++;
+    }
 }
 
-inline bool EEPROM_Write(byte data, byte address) {
-    if (EECON1bits.WR)
-        return false;
+static inline void EEPROM_UnmarkChange(eeprom_address_t address) {
+    eeprom_address_t block_aux, byteoffset_aux;
 
-    // if writing is not being performed
-    EEADR = address; // set address
-    EEDATA = virtualEEPROM[address]; // set data and increment
+    /* Each bit in a byte represents one byte and
+     * a group of 8 bits (a byte) represents a block.
+     * i.e. a 128 bytes are divided in 16 blocks
+     *
+     * The unmarking procedure is similar to MarkChange()
+     */
 
-    EECON1bits.WREN = 1; // enable eeprom write
-    INTCONbits.GIEH = 0; // disable interrupts
-    INTCONbits.GIEL = 0; // disable interrupts
+    eeprom_address_t i;
 
-    /// unlock sequence
-    asm("MOVLW 55h");
-    asm("MOVWF EECON2");
-    asm("MOVLW 0AAh");
-    asm("MOVWF EECON2");
-    asm("BSF EECON1, 1"); // write!
+    for (i = 0; i < sizeof (eeprom_data_t); i++) {
+        block_aux = address >> 3; /* divide by eight */
+        byteoffset_aux = address % 8;
+        eepromChangesMap[block_aux] &= ~(0b1 << byteoffset_aux);
 
-    INTCONbits.GIEH = 1; // enable interrupts
-    INTCONbits.GIEL = 1; // enable interrupts
-    EECON1bits.WREN = 0; // disable eeprom write
-
-    return true;
-}
-
-inline byte EEPROM_Read(byte address) {
-    EEADR = address;
-    RD = 1;
-    return EEDATA;
+        address++;
+    }
 }
