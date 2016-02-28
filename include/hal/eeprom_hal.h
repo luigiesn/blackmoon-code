@@ -1,5 +1,5 @@
 /*
- * Timer driver - part of Blackmoon servo controller
+ * EEPROM HAL - part of Blackmoon servo controller
  * Copyright (C) 2015 - Luigi E. Sica Nery
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -16,39 +16,24 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _TIMER_H_
-#define	_TIMER_H_
+#ifndef _EEPROM_HAL_H_
+#define _EEPROM_HAL_H_
 
 #include <xc.h>
 #include "../defs.h"
 
-#define NUM_MAX_TIMERS 5 // max = 255
+#define EEPROM_HAL_MEM_SIZE 128
 
-typedef void (*TimerCallbackFunction)(void);
+inline bool EEPROM_HAL_Init(void);
 
-typedef struct {
-    UINT16 period;
-    UINT16 elapsedTime;
+inline void EEPROM_HAL_Interrupt(bool enable, bool high_prior);
 
-    TimerCallbackFunction pCallbackFunction;
+inline void EEPROM_HAL_Write(byte data, byte address);
 
-    bool autoReload;
-    bool enabled;
-} Timer;
+inline bool EEPROM_HAL_Writing(void);
 
-void TIMER_Bootstrap(void);
+inline byte EEPROM_HAL_Read(byte address);
 
-void TIMER_Process(void);
+inline bool EEPROM_HAL_Reading(void);
 
-bool TIMER_Create(Timer* timer, TimerCallbackFunction pCallbackFunction);
-
-void TIMER_SetPeriod(Timer* timer, UINT16 period);
-
-void TIMER_Start(Timer* timer, bool autoReload);
-
-void TIMER_Stop(Timer* timer);
-
-void TIMER_HwEventHandle(void);
-
-#endif	/* _TIMER_H_ */
-
+#endif /* _EEPROM_HAL_H_ */

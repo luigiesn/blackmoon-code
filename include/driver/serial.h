@@ -23,49 +23,11 @@
 
 #include "../defs.h"
 
-/* Data format:
+/* Protocol:
  * <--------------LENGTH---------------->
  * OPEN | PARAM |      DATA       | CLOSE
  *                <----16-bits--->
  */
-
-///// PARAMETERS
-
-/////// Blackmoon
-// base config
-#define BM_RESET 0
-#define FUNC 1
-#define V_MAX 7
-#define V_MIN 8
-
-// radio
-#define RMAX 2
-#define RCEN 3
-#define RMIN 4
-
-// pwm
-#define SOFTSTARTER 5
-#define PWM_FREQ 6
-#define SDC 9
-
-/////// Blackmoon Servo
-#define BOARD_STATUS 0
-
-// PID loop
-#define PID_KP 1
-#define PID_KI 2
-#define PID_KD 3
-#define PID_KS 4
-#define PID_PERIOD 5
-#define PID_SET_POINT 6
-
-
-// bridge
-#define OUTPUT_MAX 7
-#define INPUT_MAX 8
-#define DEADZONE 9
-#define INVERT_BRIDGE 10
-
 
 /**
  * @brief Serial bootstrap
